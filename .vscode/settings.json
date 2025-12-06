@@ -1,0 +1,12 @@
+{
+    "search.exclude": { 
+        "**/node_modules": true,
+        "**/dist": true,
+        "**/build": true,
+        "**/.next": true,
+        "**/.nuxt": true,
+        "**/coverage": true,
+        "**/out": true,
+        "**/src/ext": true
+    },
+}
