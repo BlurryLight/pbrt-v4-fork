@@ -7,10 +7,10 @@
 #include <pbrt/filters.h>
 #include <pbrt/options.h>
 #ifdef PBRT_BUILD_GPU_RENDERER
-#ifndef __HIP_PLATFORM_AMD__
+#ifdef __NVCC__
 #include <pbrt/gpu/optix/denoiser.h>
 #include <pbrt/gpu/optix/scaler.h>
-#endif // __HIP_PLATFORM_AMD__
+#endif // __NVCC__
 #include <pbrt/gpu/util.h>
 #endif  // PBRT_BUILD_GPU_RENDERER
 #include <pbrt/util/args.h>
@@ -2229,7 +2229,7 @@ int makeequiarea(std::vector<std::string> args) {
     return 0;
 }
 
-#ifdef PBRT_BUILD_GPU_RENDERER
+#ifdef __NVCC__
 int denoise_optix(std::vector<std::string> args) {
     std::string inFilename, outFilename;
 
@@ -2344,7 +2344,7 @@ int denoise_optix(std::vector<std::string> args) {
 
     return 0;
 }
-
+#endif  // __NVCC__
 int scale_optix(std::vector<std::string> args) {
     std::string inFilename, outFilename;
 
@@ -2463,7 +2463,6 @@ int scale_optix(std::vector<std::string> args) {
 
     return 0;
 }
-#endif  // PBRT_BUILD_GPU_RENDERER
 
 int main(int argc, char *argv[]) {
     PBRTOptions opt;
@@ -2490,12 +2489,11 @@ int main(int argc, char *argv[]) {
         return convert(args);
     else if (cmd == "diff")
         return diff(args);
-#ifdef PBRT_BUILD_GPU_RENDERER
+#ifdef __NVCC__
     else if (cmd == "denoise-optix")
         return denoise_optix(args);
-    else if (cmd == "scale-optix")
+#endif  // __NVCC__
         return scale_optix(args);
-#endif  // PBRT_BUILD_GPU_RENDERER
     else if (cmd == "error")
         return error(args);
     else if (cmd == "falsecolor")
