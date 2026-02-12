@@ -30,6 +30,8 @@ option (PBRT_NVML "Use NVML for GPU performance measurement" OFF)
 option (PBRT_USE_PREGENERATED_RGB_TO_SPECTRUM_TABLES "Use pregenerated rgbspectrum_*.cpp files rather than running rgb2spec_opt to generate them at build time" OFF)
 set (PBRT_OPTIX_PATH $ENV{PBRT_OPTIX_PATH} CACHE PATH "Path to OptiX SDK")
 set (PBRT_HIPRT_PATH $ENV{PBRT_HIPRT_PATH} CACHE PATH "Path to HIPRT SDK")
+message ("PBRT_OPTIX_PATH: ${PBRT_OPTIX_PATH}")
+message ("PBRT_HIPRT_PATH: ${PBRT_HIPRT_PATH}")
 set (PBRT_GPU_SHADER_MODEL "" CACHE STRING "")
 
 

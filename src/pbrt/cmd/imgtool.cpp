@@ -2344,7 +2344,6 @@ int denoise_optix(std::vector<std::string> args) {
 
     return 0;
 }
-#endif  // __NVCC__
 int scale_optix(std::vector<std::string> args) {
     std::string inFilename, outFilename;
 
@@ -2463,6 +2462,7 @@ int scale_optix(std::vector<std::string> args) {
 
     return 0;
 }
+#endif  // __NVCC__
 
 int main(int argc, char *argv[]) {
     PBRTOptions opt;
@@ -2492,8 +2492,9 @@ int main(int argc, char *argv[]) {
 #ifdef __NVCC__
     else if (cmd == "denoise-optix")
         return denoise_optix(args);
-#endif  // __NVCC__
+    else if (cmd == "scale-optix")
         return scale_optix(args);
+#endif  // __NVCC__
     else if (cmd == "error")
         return error(args);
     else if (cmd == "falsecolor")

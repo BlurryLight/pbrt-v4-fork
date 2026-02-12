@@ -9,4 +9,5 @@
         "**/out": true,
         "**/src/ext": true
     },
+    "cmake.generator": "Ninja"
 }
