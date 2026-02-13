@@ -1,0 +1,93 @@
+{
+  "version": 3,
+  "configurePresets": [
+    {
+      "name": "ninja-debug",
+      "displayName": "Ninja Debug",
+      "description": "Debug build using Ninja generator",
+      "generator": "Ninja",
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "Debug",
+        "CMAKE_CXX_COMPILER": "cl",
+        "CMAKE_C_COMPILER": "cl"
+      },
+      "binaryDir": "${sourceDir}/build-ninja-debug",
+      "hidden": false
+    },
+    {
+      "name": "ninja-release",
+      "displayName": "Ninja Release",
+      "description": "Release build using Ninja generator",
+      "generator": "Ninja",
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "Release",
+        "CMAKE_CXX_COMPILER": "cl",
+        "CMAKE_C_COMPILER": "cl"
+      },
+      "binaryDir": "${sourceDir}/build-ninja-release",
+      "hidden": false
+    },
+    {
+      "name": "ninja-gpu-debug",
+      "displayName": "Ninja GPU Debug",
+      "description": "Debug build with GPU support using Ninja generator",
+      "generator": "Ninja",
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "Debug",
+        "CMAKE_CXX_COMPILER": "cl",
+        "CMAKE_C_COMPILER": "cl",
+        "PBRT_CUDA_ENABLED": "ON"
+      },
+      "environment": {
+        "PBRT_OPTIX_PATH": "C:\\ProgramData\\NVIDIA Corporation\\OptiX SDK 7.7.0"
+      },
+      "binaryDir": "${sourceDir}/build-ninja-gpu-debug",
+      "hidden": false
+    },
+    {
+      "name": "ninja-gpu-release",
+      "displayName": "Ninja GPU Release",
+      "description": "Release build with GPU support using Ninja generator",
+      "generator": "Ninja",
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "Release",
+        "CMAKE_CXX_COMPILER": "cl",
+        "CMAKE_C_COMPILER": "cl",
+        "PBRT_CUDA_ENABLED": "ON"
+      },
+      "environment": {
+        "PBRT_OPTIX_PATH": "C:\\ProgramData\\NVIDIA Corporation\\OptiX SDK 7.7.0"
+      },
+      "binaryDir": "${sourceDir}/build-ninja-gpu-release",
+      "hidden": false
+    }
+  ],
+  "buildPresets": [
+    {
+      "name": "ninja-debug",
+      "configurePreset": "ninja-debug",
+      "jobs": 0,
+      "hidden": false
+    },
+    {
+      "name": "ninja-release",
+      "configurePreset": "ninja-release",
+      "jobs": 0,
+      "hidden": false
+    },
+    {
+      "name": "ninja-gpu-debug",
+      "configurePreset": "ninja-gpu-debug",
+      "jobs": 0,
+      "hidden": false
+    },
+    {
+      "name": "ninja-gpu-release",
+      "configurePreset": "ninja-gpu-release",
+      "jobs": 0,
+      "hidden": false
+    }
+  ],
+  "testPresets": [
+  ]
+}
