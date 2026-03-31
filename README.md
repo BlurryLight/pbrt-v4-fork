@@ -1,3 +1,15 @@
+# 备注
+
+Windows版有点挑cuda版本和msvc版本
+目前尝试过的组合
+1. MSVC 14.38 + cuda 12.8 + Optix 7.7 (failed, nvcc failed to compile code in std)
+2. MSVC 14.44 + cuda 12.8 + Optix 7.7 (failed, nvcc failed to compile code in std)
+3. MSVC 14.36 + cuda 12.2 + Optix 8.0(success)
+
+Optix的版本不太重要，7-9没啥太大的变化，主要是MSVC和cuda有点挑
+
+
+# Original Readme
 pbrt, Version 4 (Early Release)
 ===============================
 
