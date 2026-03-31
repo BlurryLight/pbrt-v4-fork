@@ -44,13 +44,12 @@ if (NOT ZLIB_FOUND)
   set (ZLIB_BUILD_SHARED_LIBS OFF CACHE BOOL " " FORCE)
   add_subdirectory (zlib)
 
-  set (ZLIB_LIBRARIES zlibstatic)
-  set (ZLIB_INCLUDE_DIRS ${CMAKE_CURRENT_SOURCE_DIR}/zlib ${CMAKE_CURRENT_BINARY_DIR}/zlib)
-
-  # try to make openexr happy about this...
-  set (ZLIB_LIBRARY zlibstatic)
-  set (ZLIB_INCLUDE_DIR ${ZLIB_INCLUDE_DIRS})
-  set (ZLIB_FOUND TRUE)
+  # Set as CACHE variables so they are visible to OpenEXR find_package
+  set (ZLIB_LIBRARIES zlibstatic CACHE STRING "zlib library" FORCE)
+  set (ZLIB_INCLUDE_DIRS ${CMAKE_CURRENT_SOURCE_DIR}/zlib ${CMAKE_CURRENT_BINARY_DIR}/zlib CACHE STRING "zlib include dirs" FORCE)
+  set (ZLIB_LIBRARY zlibstatic CACHE STRING "zlib library" FORCE)
+  set (ZLIB_INCLUDE_DIR ${CMAKE_CURRENT_SOURCE_DIR}/zlib ${CMAKE_CURRENT_BINARY_DIR}/zlib CACHE STRING "zlib include dir" FORCE)
+  set (ZLIB_FOUND TRUE CACHE BOOL "zlib found" FORCE)
 
   set_property (TARGET zlibstatic PROPERTY FOLDER "ext")
 
