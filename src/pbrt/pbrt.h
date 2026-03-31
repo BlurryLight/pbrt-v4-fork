@@ -39,6 +39,15 @@
 #define PBRT_GPU
 #endif
 
+#if defined(PBRT_BUILD_GPU_RENDERER) && defined(__CUDACC__) && defined(_MSC_VER)
+static_assert(__CUDACC_VER_MAJOR__ >= 11,
+              "PBRT GPU builds require CUDA 11.0 or newer.");
+static_assert(!(__CUDACC_VER_MAJOR__ == 12 && _MSC_VER >= 1940),
+              "Unsupported CUDA/MSVC combination for PBRT GPU builds: CUDA 12.x "
+              "must be paired with MSVC 19.3x (toolset 14.3x). "
+              "MSVC 19.4x / toolset 14.4x is known to fail in NVCC stub generation.");
+#endif
+
 #ifdef PBRT_IS_WINDOWS
 #define PBRT_CPU_GPU_LAMBDA(...) [ =, *this ] PBRT_CPU_GPU(__VA_ARGS__) mutable
 #else
