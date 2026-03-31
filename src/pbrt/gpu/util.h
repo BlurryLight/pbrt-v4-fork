@@ -50,7 +50,49 @@
 
 namespace pbrt {
 
+enum class GPUMemoryKind {
+    Device,
+    Managed,
+    HostPinned,
+    MipmappedArray
+};
+
 std::pair<cudaEvent_t, cudaEvent_t> GetProfilerEvents(const char *description);
+
+cudaError_t TrackedCudaMalloc(void **ptr, size_t size, const char *label, const char *file,
+                              int line);
+cudaError_t TrackedCudaMallocManaged(void **ptr, size_t size, const char *label,
+                                     const char *file, int line);
+cudaError_t TrackedCudaMallocHost(void **ptr, size_t size, const char *label,
+                                  const char *file, int line);
+cudaError_t TrackedCudaFree(void *ptr, const char *label, const char *file, int line);
+cudaError_t TrackedCudaFreeHost(void *ptr, const char *label, const char *file, int line);
+cudaError_t TrackedCudaMallocMipmappedArray(cudaMipmappedArray_t *mipArray,
+                                            const cudaChannelFormatDesc *desc,
+                                            cudaExtent extent, unsigned int numLevels,
+                                            unsigned int flags, const char *label,
+                                            const char *file, int line);
+cudaError_t TrackedCudaFreeMipmappedArray(cudaMipmappedArray_t mipArray, const char *label,
+                                          const char *file, int line);
+
+template <typename T>
+inline cudaError_t TrackedCudaMalloc(T **ptr, size_t size, const char *label,
+                                     const char *file, int line) {
+    return TrackedCudaMalloc(reinterpret_cast<void **>(ptr), size, label, file, line);
+}
+
+template <typename T>
+inline cudaError_t TrackedCudaMallocManaged(T **ptr, size_t size, const char *label,
+                                            const char *file, int line) {
+    return TrackedCudaMallocManaged(reinterpret_cast<void **>(ptr), size, label, file,
+                                    line);
+}
+
+template <typename T>
+inline cudaError_t TrackedCudaMallocHost(T **ptr, size_t size, const char *label,
+                                         const char *file, int line) {
+    return TrackedCudaMallocHost(reinterpret_cast<void **>(ptr), size, label, file, line);
+}
 
 template <typename F>
 inline int GetBlockSize(const char *description, F kernel) {
@@ -129,5 +171,21 @@ void GPURegisterThread(const char *name);
 void GPUNameStream(cudaStream_t stream, const char *name);
 
 }  // namespace pbrt
+
+#define CUDA_MALLOC(ptr, label, size) \
+    CUDA_CHECK(::pbrt::TrackedCudaMalloc(ptr, size, label, __FILE__, __LINE__))
+#define CUDA_MALLOC_MANAGED(ptr, label, size) \
+    CUDA_CHECK(::pbrt::TrackedCudaMallocManaged(ptr, size, label, __FILE__, __LINE__))
+#define CUDA_MALLOC_HOST(ptr, label, size) \
+    CUDA_CHECK(::pbrt::TrackedCudaMallocHost(ptr, size, label, __FILE__, __LINE__))
+#define CUDA_FREE(ptr, label) \
+    CUDA_CHECK(::pbrt::TrackedCudaFree(ptr, label, __FILE__, __LINE__))
+#define CUDA_FREE_HOST(ptr, label) \
+    CUDA_CHECK(::pbrt::TrackedCudaFreeHost(ptr, label, __FILE__, __LINE__))
+#define CUDA_MALLOC_MIPMAPPED_ARRAY(mipArray, label, desc, extent, numLevels, flags) \
+    CUDA_CHECK(::pbrt::TrackedCudaMallocMipmappedArray(                              \
+        mipArray, desc, extent, numLevels, flags, label, __FILE__, __LINE__))
+#define CUDA_FREE_MIPMAPPED_ARRAY(mipArray, label) \
+    CUDA_CHECK(::pbrt::TrackedCudaFreeMipmappedArray(mipArray, label, __FILE__, __LINE__))
 
 #endif  // PBRT_GPU_UTIL_H

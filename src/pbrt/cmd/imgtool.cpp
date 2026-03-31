@@ -2283,7 +2283,7 @@ int denoise_optix(std::vector<std::string> args) {
 
     auto copyChannelsToGPU = [&](std::array<std::string, 3> ch, bool flipZ = false) {
         void *bufGPU;
-        CUDA_CHECK(cudaMalloc(&bufGPU, imageBytes));
+        CUDA_MALLOC(&bufGPU, "Imgtool denoise input buffer", imageBytes);
         std::vector<float> hostStaging(imageBytes / sizeof(float));
 
         ImageChannelDesc desc = image.GetChannelDesc(ch);
@@ -2314,7 +2314,7 @@ int denoise_optix(std::vector<std::string> args) {
     }
 
     RGB *rgbResultGPU;
-    CUDA_CHECK(cudaMalloc(&rgbResultGPU, imageBytes));
+    CUDA_MALLOC(&rgbResultGPU, "Imgtool denoise output buffer", imageBytes);
 
     denoiser.Denoise(rgbGPU, normalGPU, albedoGPU, rgbResultGPU);
 

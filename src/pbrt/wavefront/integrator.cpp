@@ -43,6 +43,8 @@
 namespace pbrt {
 
 STAT_MEMORY_COUNTER("Memory/Wavefront integrator pixel state", pathIntegratorBytes);
+STAT_MEMORY_COUNTER("Memory/Wavefront queue budget estimate", wavefrontQueueBudgetBytes);
+STAT_MEMORY_COUNTER("Memory/Wavefront queue allocations", wavefrontQueueAllocatedBytes);
 
 static void updateMaterialNeeds(
     Material m, pstd::array<bool, Material::NumTags()> *haveBasicEvalMaterial,
@@ -228,6 +230,11 @@ WavefrontPathIntegrator::WavefrontPathIntegrator(
     Vector2i resolution = film.PixelBounds().Diagonal();
 
     int maxSamples = 1024 * 1024;
+#ifdef PBRT_BUILD_GPU_RENDERER
+    size_t bytesOfOneSampleInAllQueues = 0;
+    size_t queueBudgetBytes = 0;
+    size_t queueBudgetFreeBytes = 0;
+#endif
 
 #ifdef PBRT_BUILD_GPU_RENDERER
     if (Options->useGPU) {
@@ -235,13 +242,14 @@ WavefrontPathIntegrator::WavefrontPathIntegrator(
         CUDA_CHECK(cudaMemGetInfo(&freeBytes, &totalBytes));
         freeBytes = freeBytes * 0.9;
         freeBytes = std::max(freeBytes, (size_t)100000000);
+        queueBudgetFreeBytes = freeBytes;
 
         const int numberOfBasicEvalMaterials =
             std::count(haveBasicEvalMaterial.begin(), haveBasicEvalMaterial.end(), true);
         const int numberOfUniversalEvalMaterials = std::count(
             haveUniversalEvalMaterial.begin(), haveUniversalEvalMaterial.end(), true);
 
-        int bytesOfOneSampleInAllQueues =
+        bytesOfOneSampleInAllQueues =
             sizeof(PixelSampleState) + sizeof(RayWorkItem) * 2 +
             sizeof(ShadowRayWorkItem) + sizeof(HitAreaLightWorkItem) +
             sizeof(MaterialEvalWorkItem<void>) * numberOfBasicEvalMaterials +
@@ -273,6 +281,14 @@ WavefrontPathIntegrator::WavefrontPathIntegrator(
     maxQueueSize = resolution.x * scanlinesPerPass;
     LOG_VERBOSE("Will render in %d passes %d scanlines per pass\n", nPasses,
                 scanlinesPerPass);
+#ifdef PBRT_BUILD_GPU_RENDERER
+    queueBudgetBytes = maxQueueSize * bytesOfOneSampleInAllQueues;
+    if (Options->useGPU)
+        LOG_VERBOSE("Wavefront queue budget: free bytes %zu, bytes/sample %zu, "
+                    "max samples %d, max queue size %d, estimated queue bytes %zu",
+                    queueBudgetFreeBytes, bytesOfOneSampleInAllQueues, maxSamples,
+                    maxQueueSize, queueBudgetBytes);
+#endif
 
     pixelSampleState = SOA<PixelSampleState>(maxQueueSize, alloc);
 
@@ -321,6 +337,10 @@ WavefrontPathIntegrator::WavefrontPathIntegrator(
         CHECK(mr);
         size_t endSize = mr->BytesAllocated();
         pathIntegratorBytes += endSize - startSize;
+        wavefrontQueueBudgetBytes += queueBudgetBytes;
+        wavefrontQueueAllocatedBytes += endSize - startSize;
+        LOG_VERBOSE("Wavefront queue allocation actual bytes %zu (estimate %zu)",
+                    endSize - startSize, queueBudgetBytes);
     }
 #endif  // PBRT_BUILD_GPU_RENDERER
 }
@@ -696,7 +716,8 @@ void WavefrontPathIntegrator::StartDisplayThread() {
     if (Options->useGPU) {
         // Allocate staging memory on the GPU to store the current WIP
         // image.
-        CUDA_CHECK(cudaMalloc(&displayRGB, resolution.x * resolution.y * sizeof(RGB)));
+        CUDA_MALLOC(&displayRGB, "Wavefront display RGB buffer",
+                    resolution.x * resolution.y * sizeof(RGB));
         CUDA_CHECK(cudaMemset(displayRGB, 0, resolution.x * resolution.y * sizeof(RGB)));
 
         // Host-side memory for the WIP Image.  We'll just let this leak so

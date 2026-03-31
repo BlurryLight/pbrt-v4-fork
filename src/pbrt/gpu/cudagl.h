@@ -374,7 +374,8 @@ CUDAOutputBuffer<PIXEL_FORMAT>::CUDAOutputBuffer(int32_t width, int32_t height) 
                                             cudaGraphicsMapFlagsWriteDiscard));
 
     CUDA_CHECK(cudaEventCreate(&readbackFinishedEvent));
-    CUDA_CHECK(cudaMallocHost(&m_host_pixels, m_width * m_height * sizeof(PIXEL_FORMAT)));
+    CUDA_MALLOC_HOST(&m_host_pixels, "CUDA GL host pixels",
+                     m_width * m_height * sizeof(PIXEL_FORMAT));
 
     display = new BufferDisplay(BufferImageFormat::FLOAT3);
 }
@@ -384,6 +385,12 @@ CUDAOutputBuffer<PIXEL_FORMAT>::~CUDAOutputBuffer() {
     makeCurrent();
 
     delete display;
+
+    if (m_cuda_gfx_resource)
+        CUDA_CHECK(cudaGraphicsUnregisterResource(m_cuda_gfx_resource));
+    if (m_host_pixels)
+        CUDA_FREE_HOST(m_host_pixels, "CUDA GL host pixels");
+    CUDA_CHECK(cudaEventDestroy(readbackFinishedEvent));
 
     if (m_pbo != 0u) {
         GL_CHECK(glBindBuffer(GL_ARRAY_BUFFER, 0));

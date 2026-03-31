@@ -17,6 +17,7 @@ namespace pbrt {
 class Denoiser {
   public:
     Denoiser(Vector2i resolution, bool haveAlbedoAndNormal);
+    ~Denoiser();
 
     // All pointers should be to GPU memory.
     // |n| and |albedo| should be nullptr iff \haveAlbedoAndNormal| is false.

@@ -40,7 +40,7 @@ void UPSInit(int nPoints) {
         void *ptr;
         size_t sz = nPoints * sizeof(Point2f);
         // GPU-side memory for sample points
-        CUDA_CHECK(cudaMalloc(&ptr, sz));
+        CUDA_MALLOC(&ptr, "Power spectrum device buffer", sz);
         b.ptr = (CUdeviceptr)ptr;
 
         // Event to keep track of when the buffer has been processed on the
@@ -48,7 +48,7 @@ void UPSInit(int nPoints) {
         CUDA_CHECK(cudaEventCreate(&b.finishedEvent));
 
         // Host-side staging buffer for async memcpy in pinned host memory.
-        CUDA_CHECK(cudaMallocHost(&b.hostPtr, sz));
+        CUDA_MALLOC_HOST(&b.hostPtr, "Power spectrum pinned staging", sz);
     }
 }
 

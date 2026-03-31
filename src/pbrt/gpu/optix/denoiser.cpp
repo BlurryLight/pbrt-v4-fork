@@ -63,15 +63,27 @@ Denoiser::Denoiser(Vector2i resolution, bool haveAlbedoAndNormal)
     OPTIX_CHECK(optixDenoiserComputeMemoryResources(denoiserHandle, resolution.x,
                                                     resolution.y, &memorySizes));
 
-    CUDA_CHECK(cudaMalloc(&denoiserState, memorySizes.stateSizeInBytes));
-    CUDA_CHECK(cudaMalloc(&scratchBuffer, memorySizes.withoutOverlapScratchSizeInBytes));
+    CUDA_MALLOC(&denoiserState, "OptiX denoiser state", memorySizes.stateSizeInBytes);
+    CUDA_MALLOC(&scratchBuffer, "OptiX denoiser scratch",
+                memorySizes.withoutOverlapScratchSizeInBytes);
 
     OPTIX_CHECK(optixDenoiserSetup(
         denoiserHandle, 0 /* stream */, resolution.x, resolution.y,
         CUdeviceptr(denoiserState), memorySizes.stateSizeInBytes,
         CUdeviceptr(scratchBuffer), memorySizes.withoutOverlapScratchSizeInBytes));
 
-    CUDA_CHECK(cudaMalloc(&intensity, sizeof(float)));
+    CUDA_MALLOC(&intensity, "OptiX denoiser intensity", sizeof(float));
+}
+
+Denoiser::~Denoiser() {
+    if (intensity)
+        CUDA_FREE(intensity, "OptiX denoiser intensity");
+    if (scratchBuffer)
+        CUDA_FREE(scratchBuffer, "OptiX denoiser scratch");
+    if (denoiserState)
+        CUDA_FREE(denoiserState, "OptiX denoiser state");
+    if (denoiserHandle)
+        OPTIX_CHECK(optixDenoiserDestroy(denoiserHandle));
 }
 
 void Denoiser::Denoise(RGB *rgb, Normal3f *n, RGB *albedo, RGB *result) {

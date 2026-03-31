@@ -1036,8 +1036,9 @@ static cudaMipmappedArray_t createSingleChannelTextureArray(
     const Image &baseImage = mipmap.GetLevel(0);
     cudaExtent extent =
         make_cudaExtent(baseImage.Resolution().x, baseImage.Resolution().y, 0);
-    CUDA_CHECK(cudaMallocMipmappedArray(&mipArray, &channelDesc, extent, mipmap.Levels(),
-                                        0 /* flags */));
+    CUDA_MALLOC_MIPMAPPED_ARRAY(&mipArray, "Texture mipmapped array", &channelDesc, extent,
+                                mipmap.Levels(),
+                                0 /* flags */);
 
     for (int level = 0; level < mipmap.Levels(); ++level) {
         const Image &levelImage = mipmap.GetLevel(level);
@@ -1162,9 +1163,9 @@ GPUSpectrumImageTexture *GPUSpectrumImageTexture::Create(
 
                         cudaExtent extent = make_cudaExtent(baseImage.Resolution().x,
                                                             baseImage.Resolution().y, 0);
-                        CUDA_CHECK(cudaMallocMipmappedArray(&mipArray, &channelDesc,
-                                                            extent, mipmap.Levels(),
-                                                            0 /* flags */));
+                        CUDA_MALLOC_MIPMAPPED_ARRAY(&mipArray, "Texture mipmapped array",
+                                                    &channelDesc, extent,
+                                                    mipmap.Levels(), 0 /* flags */);
                         for (int level = 0; level < mipmap.Levels(); ++level) {
                             const Image &levelImage = mipmap.GetLevel(level);
                             cudaArray_t levelArray;
@@ -1198,9 +1199,9 @@ GPUSpectrumImageTexture *GPUSpectrumImageTexture::Create(
 
                         cudaExtent extent = make_cudaExtent(baseImage.Resolution().x,
                                                             baseImage.Resolution().y, 0);
-                        CUDA_CHECK(cudaMallocMipmappedArray(&mipArray, &channelDesc,
-                                                            extent, mipmap.Levels(),
-                                                            0 /* flags */));
+                        CUDA_MALLOC_MIPMAPPED_ARRAY(&mipArray, "Texture mipmapped array",
+                                                    &channelDesc, extent,
+                                                    mipmap.Levels(), 0 /* flags */);
 
                         for (int level = 0; level < mipmap.Levels(); ++level) {
                             const Image &levelImage = mipmap.GetLevel(level);
@@ -1236,9 +1237,9 @@ GPUSpectrumImageTexture *GPUSpectrumImageTexture::Create(
 
                         cudaExtent extent = make_cudaExtent(baseImage.Resolution().x,
                                                             baseImage.Resolution().y, 0);
-                        CUDA_CHECK(cudaMallocMipmappedArray(&mipArray, &channelDesc,
-                                                            extent, mipmap.Levels(),
-                                                            0 /* flags */));
+                        CUDA_MALLOC_MIPMAPPED_ARRAY(&mipArray, "Texture mipmapped array",
+                                                    &channelDesc, extent,
+                                                    mipmap.Levels(), 0 /* flags */);
 
                         for (int level = 0; level < mipmap.Levels(); ++level) {
                             const Image &levelImage = mipmap.GetLevel(level);

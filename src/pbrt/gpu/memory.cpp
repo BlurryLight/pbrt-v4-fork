@@ -15,13 +15,13 @@ namespace pbrt {
 
 void *CUDAMemoryResource::do_allocate(size_t size, size_t alignment) {
     void *ptr;
-    CUDA_CHECK(cudaMallocManaged(&ptr, size));
+    CUDA_MALLOC_MANAGED(&ptr, "Unified memory resource", size);
     CHECK_EQ(0, intptr_t(ptr) % alignment);
     return ptr;
 }
 
 void CUDAMemoryResource::do_deallocate(void *p, size_t bytes, size_t alignment) {
-    CUDA_CHECK(cudaFree(p));
+    CUDA_FREE(p, "Unified memory resource");
 }
 
 void *CUDATrackedMemoryResource::do_allocate(size_t size, size_t alignment) {
@@ -29,7 +29,7 @@ void *CUDATrackedMemoryResource::do_allocate(size_t size, size_t alignment) {
         return nullptr;
 
     void *ptr;
-    CUDA_CHECK(cudaMallocManaged(&ptr, size));
+    CUDA_MALLOC_MANAGED(&ptr, "Tracked unified memory resource", size);
     DCHECK_EQ(0, intptr_t(ptr) % alignment);
 
     std::lock_guard<std::mutex> lock(mutex);
@@ -43,7 +43,7 @@ void CUDATrackedMemoryResource::do_deallocate(void *p, size_t size, size_t align
     if (!p)
         return;
 
-    CUDA_CHECK(cudaFree(p));
+    CUDA_FREE(p, "Tracked unified memory resource");
 
     std::lock_guard<std::mutex> lock(mutex);
     auto iter = allocations.find(p);
