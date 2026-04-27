@@ -38,16 +38,27 @@ set_property (TARGET deflate PROPERTY FOLDER "ext")
 # zlib
 
 find_package (ZLIB)
+# 如果从系统找到了ZLIB,CMAKE会填充
+#ZLIB::ZLIB
+#ZLIB_LIBRARY
+#ZLIB_INCLUDE_DIR
+#ZLIB_LIBRARIES
+
+# 如果没有找到，就自己手动编译
+# 但是自己编译的zlib的产物是zlibstatic，和find_package(ZLIB)的产物不同，所以需要手动设置一些变量来兼容find_package(ZLIB)的产物
 if (NOT ZLIB_FOUND)
   # Build zlib
   set (ZLIB_BUILD_STATIC_LIBS ON CACHE BOOL " " FORCE)
   set (ZLIB_BUILD_SHARED_LIBS OFF CACHE BOOL " " FORCE)
   add_subdirectory (zlib)
 
-  # Set as CACHE variables so they are visible to OpenEXR find_package
-  set (ZLIB_LIBRARIES zlibstatic CACHE STRING "zlib library" FORCE)
+  # Set as CACHE variables so they are visible to OpenEXR find_package.
+  # Use the target output file for legacy variables; using the target name here
+  # makes Ninja look for a file literally named "zlibstatic".
+  set (_PBRT_ZLIB_LIBRARY $<TARGET_FILE:zlibstatic>)
+  set (ZLIB_LIBRARIES ${_PBRT_ZLIB_LIBRARY} CACHE STRING "zlib library" FORCE)
   set (ZLIB_INCLUDE_DIRS ${CMAKE_CURRENT_SOURCE_DIR}/zlib ${CMAKE_CURRENT_BINARY_DIR}/zlib CACHE STRING "zlib include dirs" FORCE)
-  set (ZLIB_LIBRARY zlibstatic CACHE STRING "zlib library" FORCE)
+  set (ZLIB_LIBRARY ${_PBRT_ZLIB_LIBRARY} CACHE STRING "zlib library" FORCE)
   set (ZLIB_INCLUDE_DIR ${CMAKE_CURRENT_SOURCE_DIR}/zlib ${CMAKE_CURRENT_BINARY_DIR}/zlib CACHE STRING "zlib include dir" FORCE)
   set (ZLIB_FOUND TRUE CACHE BOOL "zlib found" FORCE)
 
@@ -58,7 +69,11 @@ if (NOT ZLIB_FOUND)
 endif ()
 
 set (ZLIB_INCLUDE_DIRS ${ZLIB_INCLUDE_DIRS} PARENT_SCOPE)
-set (ZLIB_LIBRARIES ${ZLIB_LIBRARIES} PARENT_SCOPE)
+if (TARGET ZLIB::ZLIB)
+  set (ZLIB_LIBRARIES ZLIB::ZLIB PARENT_SCOPE)
+else ()
+  set (ZLIB_LIBRARIES ${ZLIB_LIBRARIES} PARENT_SCOPE)
+endif ()
 
 ###########################################################################
 # openexr
@@ -88,7 +103,11 @@ add_subdirectory (double-conversion)
 
 set (DOUBLE_CONVERSION_INCLUDE ${CMAKE_CURRENT_SOURCE_DIR}/double-conversion PARENT_SCOPE)
 
-set_property (TARGET double-conversion cctest PROPERTY FOLDER "ext")
+set_property (TARGET double-conversion PROPERTY FOLDER "ext")
+# 根据build选项(BUILD_TESTING)添加cctest测试
+if (TARGET cctest)
+  set_property (TARGET cctest PROPERTY FOLDER "ext")
+endif ()
 
 ###########################################################################
 # nanovdb
@@ -132,4 +151,3 @@ add_subdirectory (glad)
 
 set_property (TARGET glfw PROPERTY FOLDER "ext")
 set_property (TARGET glad PROPERTY FOLDER "ext")
-
