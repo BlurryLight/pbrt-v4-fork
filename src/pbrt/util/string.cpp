@@ -189,6 +189,15 @@ std::u16string UTF16FromUTF8(std::string str) {
     return utf16;
 }
 
+// NormalizeUTF8() 的作用是把 UTF-8 字符串做 Unicode 规范化，
+// "é"
+//
+// 在 Unicode 里可能有两种等价表示：
+//
+// U+00E9              // 单个字符：é
+// U+0065 U+0301       // e + 组合重音符
+// 规范化为U+00E9，避免相同显示但是二进制不同
+
 std::string NormalizeUTF8(std::string str) {
     utf8proc_option_t options = UTF8PROC_COMPOSE;
 

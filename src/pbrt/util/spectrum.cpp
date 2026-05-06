@@ -2591,6 +2591,7 @@ void Init(Allocator alloc) {
 
 #ifdef PBRT_BUILD_GPU_RENDERER
     if (Options->useGPU) {
+        // 只copy指针值，不copy实际的内存(内存在Managed内存)
         CUDA_CHECK(cudaMemcpyToSymbol(xGPU, &x, sizeof(x)));
         CUDA_CHECK(cudaMemcpyToSymbol(yGPU, &y, sizeof(y)));
         CUDA_CHECK(cudaMemcpyToSymbol(zGPU, &z, sizeof(z)));

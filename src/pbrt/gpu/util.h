@@ -52,6 +52,8 @@ namespace pbrt {
 
 enum class GPUMemoryKind {
     Device,
+    // CPU 访问时，页面可能迁移到主机内存, GPU kernel 访问时，页面可能迁移到 GPU 显存。
+    // 由cudaruntime管理，可以通过prefetch来预先传输到显存
     Managed,
     HostPinned,
     MipmappedArray
