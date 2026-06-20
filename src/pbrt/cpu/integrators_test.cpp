@@ -401,6 +401,32 @@ std::vector<TestIntegrator> GetIntegrators() {
                                    scene});
         }
 
+        // Whitted (diffuse-only scenes => direct lighting only; expected ~0.5)
+        for (auto &sampler : GetSamplers(resolution)) {
+            Filter filter = new BoxFilter(Vector2f(0.5, 0.5));
+            FilmBaseParameters fp(resolution, Bounds2i(Point2i(0, 0), resolution), filter,
+                                  1., PixelSensor::CreateDefault(),
+                                  inTestDir("test.exr"));
+            RGBFilm *film = new RGBFilm(fp, RGBColorSpace::sRGB);
+            CameraBaseParameters cbp(CameraTransform(identity), film, nullptr, {},
+                                     nullptr);
+            PerspectiveCamera *camera = new PerspectiveCamera(
+                cbp, 45, Bounds2f(Point2f(-1, -1), Point2f(1, 1)), 0., 10.);
+            const Film filmp = camera->GetFilm();
+
+            float expectedWhitted = 0.5f;
+            if (std::string(scene.description).find("Le = 0.5") != std::string::npos)
+                expectedWhitted = 0.75f;
+
+            Integrator *integrator = new WhittedStyleIntegrator(
+                8, camera, sampler.first, scene.aggregate, scene.lights);
+            integrators.push_back({integrator, filmp,
+                                   "Whitted, depth 8, Perspective, " + sampler.second +
+                                       ", " + scene.description,
+                                   {scene.aggregate, scene.lights, scene.description,
+                                    expectedWhitted}});
+        }
+
         // MLT
         {
             Filter filter = new BoxFilter(Vector2f(0.5, 0.5));

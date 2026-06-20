@@ -272,16 +272,15 @@ void RayIntegrator::EvaluatePixelSample(Point2i pPixel, int sampleIndex, Sampler
             L = SampledSpectrum(0.f);
         }
 
+        PBRT_DBG("%s\n",
+                 StringPrintf("Camera sample: %s -> ray %s -> L = %s, visibleSurface %s",
+                              cameraSample, cameraRay->ray, L,
+                              (visibleSurface ? visibleSurface.ToString() : "(none)"))
+                     .c_str());
+    } else {
         PBRT_DBG(
             "%s\n",
-            StringPrintf("Camera sample: %s -> ray %s -> L = %s, visibleSurface %s",
-                         cameraSample, cameraRay->ray, L,
-                         (visibleSurface ? visibleSurface.ToString() : "(none)"))
-                .c_str());
-    } else {
-	    PBRT_DBG("%s\n",
-	             StringPrintf("Camera sample: %s -> no ray generated", cameraSample)
-			             .c_str());
+            StringPrintf("Camera sample: %s -> no ray generated", cameraSample).c_str());
     }
     // Add camera ray's contribution to image
     camera.GetFilm().AddSample(pPixel, L, lambda, &visibleSurface,
@@ -498,15 +497,74 @@ std::unique_ptr<SimplePathIntegrator> SimplePathIntegrator::Create(
 }
 
 // WhittedStyleIntegrator Method Definitions
-WhittedStyleIntegrator::WhittedStyleIntegrator(int maxDepth, Camera camera, Sampler sampler,
-                                               Primitive aggregate, std::vector<Light> lights)
+WhittedStyleIntegrator::WhittedStyleIntegrator(int maxDepth, Camera camera,
+                                               Sampler sampler, Primitive aggregate,
+                                               std::vector<Light> lights)
     : RayIntegrator(camera, sampler, aggregate, lights), maxDepth(maxDepth) {}
 
-SampledSpectrum WhittedStyleIntegrator::Li(RayDifferential ray, SampledWavelengths &lambda,
-                                           Sampler sampler, ScratchBuffer &scratchBuffer,
+SampledSpectrum WhittedStyleIntegrator::Li(RayDifferential ray,
+                                           SampledWavelengths &lambda, Sampler sampler,
+                                           ScratchBuffer &scratchBuffer,
                                            VisibleSurface *visibleSurface) const {
-    // TODO: implement Whitted-style recursive ray tracing.
-    return SampledSpectrum(0.f);
+    SampledSpectrum L(0.f), beta(1.f);
+    int depth = 0;
+    while (beta && depth < maxDepth) {
+        pstd::optional<ShapeIntersection> si = Intersect(ray);
+        if (!si) {
+            for (const auto &light : infiniteLights) {
+                L += beta * light.Le(ray, lambda);
+            }
+            break;
+        }
+
+        SurfaceInteraction &isect = si->intr;
+
+        BSDF bsdf = isect.GetBSDF(ray, lambda, camera, scratchBuffer, sampler);
+        // hit medium
+        if (!bsdf) {
+            isect.SkipIntersection(&ray, si->tHit);
+            continue;
+        }
+
+        Vector3f wo = -ray.d;
+        L += beta * isect.Le(wo, lambda);
+
+        for (const auto &light : lights) {
+            Point2f uLight = sampler.Get2D();
+            pstd::optional<LightLiSample> ls = light.SampleLi(isect, uLight, lambda);
+            if (ls && ls->L && ls->pdf > 0)
+
+            {
+                SampledSpectrum f = bsdf.f(wo, ls->wi) * AbsDot(ls->wi, isect.shading.n);
+                if (f && Unoccluded(isect, ls->pLight)) {
+                    L += beta * f * ls->L / ls->pdf;
+                }
+            }
+        }
+
+        ++depth;
+        if (depth == maxDepth) {
+            break;
+        }
+
+        // only update ray when specular
+        if (IsSpecular(bsdf.Flags())) {
+            Float uc = sampler.Get1D();
+            Point2f u2 = sampler.Get2D();
+            pstd::optional<BSDFSample> bs =
+                bsdf.Sample_f(wo, uc, u2, TransportMode::Radiance);
+            if(!bs || !bs->f || bs->pdf == 0) {
+                break;
+            }
+            beta *= bs->f * AbsDot(bs->wi, isect.shading.n) / bs->pdf;
+            ray  = isect.SpawnRay(ray, bsdf, bs->wi, bs->flags, bs->eta);
+        }
+        else
+        {
+            break; // diffuse only light once
+        }
+    }
+    return L;
 }
 
 std::string WhittedStyleIntegrator::ToString() const {
@@ -1477,8 +1535,7 @@ retry:
         // Divide by pi so that fully visible is one.
         Ray r = isect.SpawnRay(wi);
         if (!IntersectP(r, maxDist)) {
-            return illumScale * illuminant.Sample(lambda) *
-                   Dot(wi, n) / (Pi * pdf);
+            return illumScale * illuminant.Sample(lambda) * Dot(wi, n) / (Pi * pdf);
         }
     }
     return SampledSpectrum(0.);
@@ -2203,14 +2260,15 @@ Float MISWeight(const Integrator &integrator, Camera camera, Vertex *lightVertic
 
     Film film = camera.GetFilm();
     Float splatScale = Float(film.FullResolution().x) * Float(film.FullResolution().y) /
-        Float(film.PixelBounds().Area());
+                       Float(film.PixelBounds().Area());
 
     // Consider hypothetical connection strategies along the camera subpath
     Float ri = 1;
     for (int i = t - 1; i > 0; --i) {
         ri *= remap0(cameraVertices[i].pdfRev) / remap0(cameraVertices[i].pdfFwd);
         // See https://github.com/mmp/pbrt-v4/issues/347
-        if (i == 1) ri /= splatScale;
+        if (i == 1)
+            ri /= splatScale;
         if (!cameraVertices[i].delta && !cameraVertices[i - 1].delta)
             sumRi += ri;
     }
@@ -2226,7 +2284,8 @@ Float MISWeight(const Integrator &integrator, Camera camera, Vertex *lightVertic
     }
 
     // See https://github.com/mmp/pbrt-v4/issues/347
-    if (t == 1) sumRi /= splatScale;
+    if (t == 1)
+        sumRi /= splatScale;
     return 1 / (1 + sumRi);
 }
 
@@ -2326,11 +2385,12 @@ SampledSpectrum BDPTIntegrator::Li(RayDifferential ray, SampledWavelengths &lamb
                     // scenes where the camera has a finite aperture, since
                     // we don't have the CameraSample either so just have
                     // to pass (0.5,0.5) in for the lens sample...
-                    pstd::optional<CameraWiSample> cs =
-                        camera.SampleWi(Interaction(ray(100.f), nullptr), Point2f(0.5f, 0.5f), lambda);
+                    pstd::optional<CameraWiSample> cs = camera.SampleWi(
+                        Interaction(ray(100.f), nullptr), Point2f(0.5f, 0.5f), lambda);
                     CHECK_RARE(1e-3, !cs);
                     if (cs)
-                        weightFilms[BufferIndex(s, t)].AddSplat(cs->pRaster, value, lambda);
+                        weightFilms[BufferIndex(s, t)].AddSplat(cs->pRaster, value,
+                                                                lambda);
                 }
             }
             if (t != 1)
@@ -2383,7 +2443,7 @@ SampledSpectrum ConnectBDPT(const Integrator &integrator, SampledWavelengths &la
                     // See https://github.com/mmp/pbrt-v4/issues/347
                     Film film = camera.GetFilm();
                     L *= Float(film.FullResolution().x) * Float(film.FullResolution().y) /
-                        Float(film.PixelBounds().Area());
+                         Float(film.PixelBounds().Area());
                 }
             }
         }
@@ -2456,8 +2516,8 @@ SampledSpectrum ConnectBDPT(const Integrator &integrator, SampledWavelengths &la
         ++zeroRadiancePaths;
     pathLength << s + t - 2;
     // Compute MIS weight for connection strategy
-    Float misWeight = L ? MISWeight(integrator, camera, lightVertices, cameraVertices, sampled, s,
-                                    t, lightSampler)
+    Float misWeight = L ? MISWeight(integrator, camera, lightVertices, cameraVertices,
+                                    sampled, s, t, lightSampler)
                         : 0.f;
     PBRT_DBG("MIS weight for (s,t) = (%d, %d) connection: %f\n", s, t, misWeight);
     DCHECK(!IsNaN(misWeight));
@@ -3704,8 +3764,8 @@ std::unique_ptr<Integrator> Integrator::Create(
         integrator = RandomWalkIntegrator::Create(parameters, camera, sampler, aggregate,
                                                   lights, loc);
     else if (name == "whitted")
-        integrator = WhittedStyleIntegrator::Create(parameters, camera, sampler, aggregate,
-                                                    lights, loc);
+        integrator = WhittedStyleIntegrator::Create(parameters, camera, sampler,
+                                                    aggregate, lights, loc);
     else if (name == "sppm")
         integrator = SPPMIntegrator::Create(parameters, colorSpace, camera, sampler,
                                             aggregate, lights, loc);
