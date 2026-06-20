@@ -497,6 +497,30 @@ std::unique_ptr<SimplePathIntegrator> SimplePathIntegrator::Create(
                                                   camera, sampler, aggregate, lights);
 }
 
+// WhittedStyleIntegrator Method Definitions
+WhittedStyleIntegrator::WhittedStyleIntegrator(int maxDepth, Camera camera, Sampler sampler,
+                                               Primitive aggregate, std::vector<Light> lights)
+    : RayIntegrator(camera, sampler, aggregate, lights), maxDepth(maxDepth) {}
+
+SampledSpectrum WhittedStyleIntegrator::Li(RayDifferential ray, SampledWavelengths &lambda,
+                                           Sampler sampler, ScratchBuffer &scratchBuffer,
+                                           VisibleSurface *visibleSurface) const {
+    // TODO: implement Whitted-style recursive ray tracing.
+    return SampledSpectrum(0.f);
+}
+
+std::string WhittedStyleIntegrator::ToString() const {
+    return StringPrintf("[ WhittedStyleIntegrator maxDepth: %d ]", maxDepth);
+}
+
+std::unique_ptr<WhittedStyleIntegrator> WhittedStyleIntegrator::Create(
+    const ParameterDictionary &parameters, Camera camera, Sampler sampler,
+    Primitive aggregate, std::vector<Light> lights, const FileLoc *loc) {
+    int maxDepth = parameters.GetOneInt("maxdepth", 5);
+    return std::make_unique<WhittedStyleIntegrator>(maxDepth, camera, sampler, aggregate,
+                                                    lights);
+}
+
 // LightPathIntegrator Method Definitions
 LightPathIntegrator::LightPathIntegrator(int maxDepth, Camera camera, Sampler sampler,
                                          Primitive aggregate, std::vector<Light> lights)
@@ -3679,6 +3703,9 @@ std::unique_ptr<Integrator> Integrator::Create(
     else if (name == "randomwalk")
         integrator = RandomWalkIntegrator::Create(parameters, camera, sampler, aggregate,
                                                   lights, loc);
+    else if (name == "whitted")
+        integrator = WhittedStyleIntegrator::Create(parameters, camera, sampler, aggregate,
+                                                    lights, loc);
     else if (name == "sppm")
         integrator = SPPMIntegrator::Create(parameters, colorSpace, camera, sampler,
                                             aggregate, lights, loc);

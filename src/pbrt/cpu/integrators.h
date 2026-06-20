@@ -203,6 +203,28 @@ class SimplePathIntegrator : public RayIntegrator {
     UniformLightSampler lightSampler;
 };
 
+// WhittedStyleIntegrator Definition
+class WhittedStyleIntegrator : public RayIntegrator {
+  public:
+    // WhittedStyleIntegrator Public Methods
+    WhittedStyleIntegrator(int maxDepth, Camera camera, Sampler sampler,
+                           Primitive aggregate, std::vector<Light> lights);
+
+    SampledSpectrum Li(RayDifferential ray, SampledWavelengths &lambda, Sampler sampler,
+                       ScratchBuffer &scratchBuffer,
+                       VisibleSurface *visibleSurface) const;
+
+    static std::unique_ptr<WhittedStyleIntegrator> Create(
+        const ParameterDictionary &parameters, Camera camera, Sampler sampler,
+        Primitive aggregate, std::vector<Light> lights, const FileLoc *loc);
+
+    std::string ToString() const;
+
+  private:
+    // WhittedStyleIntegrator Private Members
+    int maxDepth;
+};
+
 // PathIntegrator Definition
 class PathIntegrator : public RayIntegrator {
   public:
