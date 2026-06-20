@@ -679,6 +679,78 @@ TEST(Sampling, Linear) {
     }
 }
 
+TEST(Sampling, LinearGeneral) {
+    // Verify the generalized linear sampling for a wide range of a, b:
+    //   - both positive (covered by original)
+    //   - both negative (new: same-sign path uses |a|, |b|)
+    //   - opposite signs (new: piecewise V-shape)
+    // The test checks that InvertLinearSampleGeneral(SampleLinearGeneral(u)) ~= u
+    // and that histogram-based PDF matches LinearPDFGeneral.
+
+    auto checkErr = [](Float a, Float b) {
+        Float err;
+        if (std::min(std::abs(a), std::abs(b)) < 1e-2)
+            err = std::abs(a - b);
+        else
+            err = std::abs(2 * (a - b) / (a + b));
+        return err > 1e-2;
+    };
+
+    // (a, b) test cases covering same-sign positive, same-sign negative, opposite signs.
+    Float cases[][2] = {
+        {3, 1},      // both positive
+        {1, 4},      // both positive
+        {-3, -1},    // both negative
+        {-2, -5},    // both negative
+        {3, -1},     // opposite: x0 = 0.75
+        {1, -3},     // opposite: x0 = 0.25
+        {2, -2},     // symmetric tent
+        {-2, 2},     // symmetric tent (other direction)
+    };
+
+    for (auto &c : cases) {
+        Float a = c[0], b = c[1];
+        // Inversion roundtrip: SampleLinearGeneral + InvertLinearSampleGeneral
+        for (Float u : Uniform1D(100)) {
+            Float x = SampleLinearGeneral(u, a, b);
+            Float uBack = InvertLinearSampleGeneral(x, a, b);
+            EXPECT_FALSE(checkErr(u, uBack))
+                << " a=" << a << " b=" << b
+                << " u=" << u << " -> x=" << x << " -> u'=" << uBack;
+        }
+        // Self-consistency: PDF at sampled x is finite and non-negative.
+        for (Float u : Uniform1D(50)) {
+            Float x = SampleLinearGeneral(u, a, b);
+            Float p = LinearPDFGeneral(x, a, b);
+            EXPECT_GE(p, 0) << " a=" << a << " b=" << b
+                            << " u=" << u << " x=" << x;
+        }
+    }
+
+    // Histogram check for the V-shape case: a=2, b=-2 should give a tent
+    // PDF centered at x=0.5 (symmetric). The histogram is V-shaped, so we
+    // compare against the analytically expected bucket count:
+    //   expected[i] = nSamples * (PDF mid-point of bucket i) * bucket width
+    {
+        Float a = 2, b = -2;
+        int nBuckets = 32;
+        std::vector<int> buckets(nBuckets, 0);
+        int nSamples = 1000000;
+        for (int i = 0; i < nSamples; ++i) {
+            Float u = (i + .5) / nSamples;
+            Float t = SampleLinearGeneral(u, a, b);
+            ++buckets[std::min<int>(t * nBuckets, nBuckets - 1)];
+        }
+        Float bucketWidth = 1.f / nBuckets;
+        for (int i = 0; i < nBuckets; ++i) {
+            Float xMid = (i + 0.5f) * bucketWidth;
+            Float expected = nSamples * LinearPDFGeneral(xMid, a, b) * bucketWidth;
+            EXPECT_NEAR(buckets[i], expected, .01 * expected)
+                << " bucket " << i << " xMid=" << xMid;
+        }
+    }
+}
+
 TEST(Sampling, Tent) {
     // Make sure stratification is preserved at the midpoint of the
     // sampling domain.

@@ -131,6 +131,89 @@ PBRT_CPU_GPU inline Float InvertLinearSample(Float x, Float a, Float b) {
     return x * (a * (2 - x) + b * x) / (a + b);
 }
 
+// LinearPDFGeneral: PDF proportional to |Lerp(x, a, b)| on [0, 1].
+// Supports arbitrary a, b (same or opposite signs).
+// Core idea: when a and b have the same sign, |w(x)| = sign(a) * w(x) so the
+// PDF reduces to the standard 2*w(x)/(a+b). When a and b have opposite signs,
+// w(x) crosses zero at x0 = |a|/(|a|+|b|), and |w(x)| becomes a piecewise
+// linear V-shape: |w| = |a| - C*x on [0, x0] and C*x - |a| on [x0, 1].
+PBRT_CPU_GPU inline Float LinearPDFGeneral(Float x, Float a, Float b) {
+    if (x < 0 || x > 1)
+        return 0;
+    if (a == 0 && b == 0)
+        return 1;  // degenerate uniform
+    if ((a >= 0 && b >= 0) || (a <= 0 && b <= 0))
+        return 2 * Lerp(x, a, b) / (a + b);
+    // Opposite signs: piecewise V-shape with |w(0)| = |a|, |w(1)| = |b|.
+    Float ap = std::abs(a), bp = std::abs(b);
+    Float C = ap + bp;
+    Float Z = (ap * ap + bp * bp) / (2 * C);
+    if (x <= ap / C)
+        return (ap - C * x) / Z;
+    else
+        return (C * x - ap) / Z;
+}
+
+// SampleLinearGeneral: draw x in [0,1] with PDF proportional to |Lerp(x, a, b)|.
+// Core idea: when a and b have the same sign, the inverse CDF has a closed
+// form. We use |a| in place of a so that the "sqrt(a^2) = a" simplification
+// becomes "sqrt(a^2) = |a|" and we always pick the right root of the
+// quadratic (positive root for a,b >= 0; negative root for a,b <= 0, which
+// after substituting a = -|a|, b = -|b| gives the same formula).
+// For opposite signs, w(x) crosses zero, so we invert a piecewise CDF:
+// left branch [0, x0]  -> x = (|a| - sqrt(disc)) / C, disc = |a|^2 - (|a|^2+|b|^2)*u
+// right branch [x0, 1] -> x = (|a| + sqrt(disc)) / C, disc = (|a|^2+|b|^2)*(u - threshold)
+PBRT_CPU_GPU inline Float SampleLinearGeneral(Float u, Float a, Float b) {
+    if (a == 0 && b == 0)
+        return u;  // degenerate uniform
+    if ((a >= 0 && b >= 0) || (a <= 0 && b <= 0)) {
+        // Same sign: the original formula, but use |a| in the denominator
+        // so that the algebraic identity sqrt(a^2) = a (true when a >= 0) is
+        // replaced by sqrt(a^2) = |a|, which is correct for any sign.
+        Float ap = std::abs(a), bp = std::abs(b);
+        Float x = u * (ap + bp) / (ap + std::sqrt(Lerp(u, Sqr(a), Sqr(b))));
+        return std::min(x, OneMinusEpsilon);
+    }
+    // Opposite signs: piecewise inversion of the V-shape CDF.
+    Float ap = std::abs(a), bp = std::abs(b);
+    Float C = ap + bp;
+    Float sum2 = ap * ap + bp * bp;
+    Float threshold = (ap * ap) / sum2;
+    if (u <= threshold) {
+        // Left branch: |w(x)| = ap - C*x, CDF = (ap*x - C*x^2/2) / Z.
+        // Inverting: C*x^2 - 2*ap*x + 2*Z*u = 0. Discriminant 2*Z*u
+        // simplifies to (sum2)*u / C, giving disc = ap^2 - sum2 * u.
+        Float disc = std::max<Float>(0, ap * ap - sum2 * u);
+        Float x = (ap - std::sqrt(disc)) / C;
+        return std::min(x, OneMinusEpsilon);
+    } else {
+        // Right branch: |w(x)| = C*x - ap, CDF = (C*x^2/2 - ap*x + ap^2/C) / Z.
+        // Inverting: C*x^2 - 2*ap*x - 2*Z*(u - threshold) + 2*ap^2/C = 0,
+        // which simplifies to disc = sum2 * (u - threshold).
+        Float disc = std::max<Float>(0, sum2 * (u - threshold));
+        Float x = (ap + std::sqrt(disc)) / C;
+        return std::min(x, OneMinusEpsilon);
+    }
+}
+
+// InvertLinearSampleGeneral: CDF F(x) for the |Lerp(x, a, b)| distribution.
+// Core idea: for same-sign a, b, F(x) is the same as the standard linear CDF.
+// For opposite signs, F(x) is piecewise: on [0, x0] it is (|a|*x - C*x^2/2)/Z,
+// and on [x0, 1] it is (C*x^2/2 - |a|*x + |a|^2/C)/Z, with x0 = |a|/C.
+PBRT_CPU_GPU inline Float InvertLinearSampleGeneral(Float x, Float a, Float b) {
+    if (a == 0 && b == 0)
+        return x;
+    if ((a >= 0 && b >= 0) || (a <= 0 && b <= 0))
+        return x * (a * (2 - x) + b * x) / (a + b);
+    Float ap = std::abs(a), bp = std::abs(b);
+    Float C = ap + bp;
+    Float Z = (ap * ap + bp * bp) / (2 * C);
+    if (x <= ap / C)
+        return (ap * x - C * x * x / 2) / Z;
+    else
+        return (C * x * x / 2 - ap * x + (ap * ap) / C) / Z;
+}
+
 PBRT_CPU_GPU inline Float BilinearPDF(Point2f p, pstd::span<const Float> w) {
     DCHECK_EQ(4, w.size());
     if (p.x < 0 || p.x > 1 || p.y < 0 || p.y > 1)
