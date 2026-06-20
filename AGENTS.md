@@ -2,9 +2,40 @@
 
 ## Project Structure & Module Organization
 
-This repository is a C++17 implementation of pbrt-v4 built with CMake. Core renderer code lives in `src/pbrt/`, with major subsystems split into `base/`, `cpu/`, `gpu/`, `wavefront/`, and `util/`. Command-line tools are under `src/pbrt/cmd/` and third-party dependencies are vendored under `src/ext/`; avoid editing vendored code unless the change is explicitly dependency-related. Unit tests are colocated with implementation files as `*_test.cpp` under `src/pbrt/` and `src/pbrt/util/`. Example scenes and assets live in `scenes/` and `images/`. Generated and local build output belongs in `build/` or `build-release/`.
+This repository is a C++17 implementation of pbrt-v4 built with CMake. Core renderer code lives in `src/pbrt/`, with major subsystems split into `base/`, `cpu/`, `gpu/`, `wavefront/`, and `util/`. Command-line tools are under `src/pbrt/cmd/` and third-party dependencies are vendored under `src/ext/`; avoid editing vendored code unless the change is explicitly dependency-related. Unit tests are colocated with implementation files as `*_test.cpp` under `src/pbrt/` and `src/pbrt/util/`. Example scenes and assets live in `scenes/` and `images/`. Generated and local build output belongs in `build/` or `build-release/`. The agent build dir is `build/cmake-build-agent/` (see below).
 
 ## Build, Test, and Development Commands
+
+### Agent build (recommended for code agents)
+
+Code agents must use the dedicated agent build script so that their
+intermediate build artifacts do not collide with a developer's working
+`build/` or `build-release/` tree. The agent build dir is fully isolated
+at `build/cmake-build-agent/`.
+
+- `./local_build_test.py`: full pipeline (configure + build + test) in Release.
+- `./local_build_test.py --configure`: only configure (Ninja, Release by default).
+- `./local_build_test.py --build`: only build an already-configured tree.
+- `./local_build_test.py --test`: only run the unit-test binary.
+- `./local_build_test.py --render`: also run a 1-spp smoke render of `scenes/cornell_box_v4.pbrt` and verify a non-trivial EXR is produced.
+- `./local_build_test.py --clean`: wipe the agent build dir before running.
+- `./local_build_test.py --debug`: Debug build instead of Release.
+- `./local_build_test.py --jobs N`: cap parallelism.
+- `./local_build_test.py --gtest-filter=Parser.*`: forward a filter to `pbrt_test`.
+- `./local_build_test.py --extra-cmake -DFOO=bar ...`: append extra cmake flags.
+
+The script auto-initializes git submodules, reuses the pre-generated
+`rgbspectrum_*.cpp` tables from `build/` if present (skipping the
+`rgb2spec_opt` build step), and exits non-zero on any failure
+(1 = build/test failure, 2 = missing prerequisites, 130 = interrupted).
+Always run it (or at minimum `./local_build_test.py --configure --build`)
+after editing a renderer-facing file and before reporting success.
+
+### User-facing presets (avoid in agent sessions)
+
+These are the presets from `CMakePresets.json` intended for human
+developers. They share the `build/` and `build-release/` directories and
+must not be used by code agents:
 
 - `git submodule update --init --recursive`: fetch required third-party submodules.
 - `cmake --preset debug`: configure a Debug Ninja build in `build/`.
@@ -17,7 +48,9 @@ This repository is a C++17 implementation of pbrt-v4 built with CMake. Core rend
 
 Both configure presets generate `compile_commands.json` for editor and tooling integration.
 
-GPU builds depend on CUDA and OptiX configuration. Set `PBRT_OPTIX7_PATH` or pass `-DPBRT_OPTIX7_PATH=...`; set `-DPBRT_GPU_SHADER_MODEL=sm_80` when auto-detection is unreliable.
+### GPU builds
+
+GPU builds depend on CUDA and OptiX configuration. Set `PBRT_OPTIX7_PATH` or pass `-DPBRT_OPTIX7_PATH=...`; set `-DPBRT_GPU_SHADER_MODEL=sm_80` when auto-detection is unreliable. To opt in for the agent build, pass `--cuda` (default sm_80) or `--extra-cmake -DPBRT_GPU_SHADER_MODEL=sm_75 ...`.
 
 ## Coding Style & Naming Conventions
 
